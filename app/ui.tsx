@@ -5,29 +5,38 @@ import Header from "@/components/header";
 import NewNote from "@/components/new-note";
 import NoteViewer from "@/components/note-viewer";
 import Sidebar from "@/components/sidebar";
+import { Database } from "@/types_db";
 import { supabase } from "@/utils/supabase";
 import { useEffect, useState } from "react";
-
-const notes = [
-  {
-    id: 1,
-    title: "노트 1",
-    content: "노트 내용입니다 1",
-  },
-  {
-    id: 2,
-    title: "노트 2",
-    content: "노트 내용입니다 2",
-  },
-];
 
 export default function UI() {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [notes, setNotes] = useState<
+    Database["public"]["Tables"]["note"]["Row"][]
+  >([]);
+  const [search, setSearch] = useState("");
+
+  const fetchNotes = async () => {
+    const { data, error } = await supabase
+      .from("note")
+      .select("*")
+      .ilike("title", `%${search}%`);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setNotes(data);
+  };
 
   useEffect(() => {
-    supabase.from("note").select("*").then(console.log);
+    fetchNotes();
   }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [search]);
 
   return (
     <main className="w-full h-screen flex flex-col">
@@ -37,12 +46,22 @@ export default function UI() {
           activeNoteId={activeNoteId}
           setActiveNoteId={setActiveNoteId}
           setIsCreating={setIsCreating}
+          search={search}
+          setSearch={setSearch}
           notes={notes}
         />
         {isCreating ? (
-          <NewNote setIsCreating={setIsCreating} />
+          <NewNote
+            fetchNotes={fetchNotes}
+            setActiveNoteId={setActiveNoteId}
+            setIsCreating={setIsCreating}
+          />
         ) : activeNoteId ? (
-          <NoteViewer note={notes.find((note) => note.id === activeNoteId)} />
+          <NoteViewer
+            note={notes.find((note) => note.id === activeNoteId)}
+            setActiveNoteId={setActiveNoteId}
+            fetchNotes={fetchNotes}
+          />
         ) : (
           <EmptyNote />
         )}
